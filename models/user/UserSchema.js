@@ -29,6 +29,13 @@ const userSchema = new mongoose.Schema(
       state: { type: String, trim: true },
       postcode: { type: String, trim: true },
     },
+    paymentCard: {
+      cardholderName: { type: String, trim: true },
+      brand: { type: String, trim: true },
+      last4: { type: String, match: /^\d{4}$/ },
+      expiryMonth: { type: String, match: /^(0[1-9]|1[0-2])$/ },
+      expiryYear: { type: String, match: /^\d{4}$/ },
+    },
   },
   {
     timestamps: true,
