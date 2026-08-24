@@ -1,10 +1,19 @@
 const express = require('express');
-const { getUserByEmail, insertUser } = require('../models/user/UserModel');
+const { getUserByEmail, insertUser, updateUserDetails } = require('../models/user/UserModel');
 const { comparePassword, hashPassword } = require('../utils/bcryptjs');
 const { signJWT } = require('../utils/jwt');
 const auth = require('../middlewares/authMiddleware');
+const { getOrdersByUserId, insertOrder } = require('../models/order/OrderModel');
 
 const router = express.Router();
+
+const serializeUser = (user) => ({
+  id: user._id.toString(),
+  name: user.name,
+  email: user.email,
+  phone: user.phone || '',
+  deliveryAddress: user.deliveryAddress || {},
+});
 
 router.post('/signup', async (req, res, next) => {
   try {
@@ -36,11 +45,7 @@ router.post('/signup', async (req, res, next) => {
     return res.status(201).json({
       success: true,
       token,
-      user: {
-        id: newUser._id.toString(),
-        name: newUser.name,
-        email: newUser.email,
-      },
+      user: serializeUser(newUser),
     });
   } catch (error) {
     if (error.message && error.message.includes('E11000 duplicate key error collection')) {
@@ -88,11 +93,7 @@ router.post('/login', async (req, res, next) => {
     return res.json({
       success: true,
       token,
-      user: {
-        id: user._id.toString(),
-        name: user.name,
-        email: user.email,
-      },
+      user: serializeUser(user),
     });
   } catch (error) {
     return next(error);
@@ -104,17 +105,29 @@ router.get('/me', auth, (req, res) => {
 
   return res.json({
     success: true,
-    user: {
-      id: user._id.toString(),
-      name: user.name,
-      email: user.email,
-    },
+    user: serializeUser(user),
   });
+});
+
+router.get('/orders', auth, async (req, res) => {
+  try {
+    const orders = await getOrdersByUserId(req.user._id);
+
+    return res.json({
+      success: true,
+      orders,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Unable to load orders',
+    });
+  }
 });
 
 router.post('/checkout', auth, async (req, res) => {
   try {
-    const { items, total, deliveryAddress } = req.body || {};
+    const { items, total, deliveryAddress, paymentMethod } = req.body || {};
 
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
@@ -123,22 +136,57 @@ router.post('/checkout', auth, async (req, res) => {
       });
     }
 
-    if (!deliveryAddress || !deliveryAddress.city || !deliveryAddress.street) {
+    if (
+      !deliveryAddress ||
+      !deliveryAddress.city ||
+      !deliveryAddress.street ||
+      !deliveryAddress.state ||
+      !deliveryAddress.postcode ||
+      !deliveryAddress.phone
+    ) {
       return res.status(400).json({
         success: false,
         message: 'Delivery address is required',
       });
     }
 
+    if (!['cash', 'card'].includes(paymentMethod)) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid payment method is required',
+      });
+    }
+
+    if (typeof total !== 'number' || total < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid order total is required',
+      });
+    }
+
+    const order = await insertOrder({
+      userId: req.user._id,
+      items,
+      total,
+      deliveryAddress,
+      paymentMethod,
+    });
+
+    const updatedUser = await updateUserDetails(req.user._id, {
+      phone: deliveryAddress.phone,
+      deliveryAddress: {
+        street: deliveryAddress.street,
+        city: deliveryAddress.city,
+        state: deliveryAddress.state,
+        postcode: deliveryAddress.postcode,
+      },
+    });
+
     return res.status(201).json({
       success: true,
       message: 'Order placed successfully',
-      order: {
-        userId: req.user._id.toString(),
-        items,
-        total,
-        deliveryAddress,
-      },
+      order,
+      user: serializeUser(updatedUser),
     });
   } catch (error) {
     return res.status(500).json({

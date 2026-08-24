@@ -19,6 +19,16 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    phone: {
+      type: String,
+      trim: true,
+    },
+    deliveryAddress: {
+      street: { type: String, trim: true },
+      city: { type: String, trim: true },
+      state: { type: String, trim: true },
+      postcode: { type: String, trim: true },
+    },
   },
   {
     timestamps: true,

@@ -14,7 +14,7 @@ app.get('/', (req, res) => {
   res.json({
     success: true,
     message: 'Burger Yard API is running',
-    endpoints: ['/api/v1/signup', '/api/v1/login', '/api/v1/me'],
+    endpoints: ['/api/v1/signup', '/api/v1/login', '/api/v1/me', '/api/v1/checkout'],
   });
 });
 
