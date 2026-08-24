@@ -1,21 +1,34 @@
-const jwt = require('jsonwebtoken');
+const { getUserByEmail } = require('../models/user/UserModel');
+const { verifyJWT } = require('../utils/jwt');
 
-const authMiddleware = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ success: false, message: 'Access token missing' });
-  }
-
-  const token = authHeader.split(' ')[1];
-
+const auth = async (req, res, next) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'bhasAjmee123');
-    req.user = decoded;
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'Access token missing' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = verifyJWT(token);
+
+    if (!decoded?.email) {
+      return res.status(403).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const user = await getUserByEmail(decoded.email);
+
+    if (!user?._id) {
+      return res.status(403).json({ success: false, message: 'Unauthorized' });
+    }
+
+    user.password = undefined;
+    req.user = user;
+
     next();
   } catch (error) {
-    return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-module.exports = authMiddleware;
+module.exports = auth;

@@ -1,16 +1,18 @@
 const mongoose = require('mongoose');
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/burgeryard';
+const MONGO_URI = process.env.MONGO_URI;
 
-const connectMongoDb = async () => {
+const conMongoDb = async () => {
   try {
-    await mongoose.connect(MONGO_URI);
-    console.log('MongoDB connected successfully');
+    const conn = await mongoose.connect(MONGO_URI);
+    if (conn) {
+      console.log('MongoDB connected successfully');
+    }
     return true;
   } catch (error) {
-    console.warn('MongoDB connection skipped or failed:', error.message);
+    console.log('MongoDB connection error:', error.message);
     return false;
   }
 };
 
-module.exports = { connectMongoDb };
+module.exports = { conMongoDb };
