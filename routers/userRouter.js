@@ -288,7 +288,9 @@ router.post('/checkout', auth, async (req, res) => {
       });
     }
 
-    if (!['cash', 'stripe'].includes(paymentMethod)) {
+    const cardPaymentMethods = ['visa', 'mastercard'];
+
+    if (!['cash', 'paypal', ...cardPaymentMethods].includes(paymentMethod)) {
       return res.status(400).json({
         success: false,
         message: 'A valid payment method is required',
@@ -302,11 +304,11 @@ router.post('/checkout', auth, async (req, res) => {
       });
     }
 
-    if (paymentMethod === 'stripe') {
+    if (cardPaymentMethods.includes(paymentMethod)) {
       if (!stripe || !paymentIntentId) {
         return res.status(400).json({
           success: false,
-          message: 'A completed Stripe payment is required',
+          message: 'A completed card payment is required',
         });
       }
 
@@ -318,7 +320,7 @@ router.post('/checkout', auth, async (req, res) => {
       ) {
         return res.status(400).json({
           success: false,
-          message: 'Stripe payment could not be verified',
+          message: 'Card payment could not be verified',
         });
       }
     }
@@ -329,8 +331,8 @@ router.post('/checkout', auth, async (req, res) => {
       total,
       deliveryAddress,
       paymentMethod,
-      paymentIntentId: paymentMethod === 'stripe' ? paymentIntentId : undefined,
-      paymentStatus: paymentMethod === 'stripe' ? 'paid' : 'pending',
+      paymentIntentId: cardPaymentMethods.includes(paymentMethod) ? paymentIntentId : undefined,
+      paymentStatus: cardPaymentMethods.includes(paymentMethod) ? 'paid' : 'pending',
     });
 
     const updatedUser = await updateUserDetails(req.user._id, {
