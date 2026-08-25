@@ -21,6 +21,7 @@ const serializeUser = (user) => ({
   paymentCard: user.paymentCard || {},
 });
 
+// Create a local account and return a signed session token.
 router.post('/signup', async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
@@ -65,6 +66,7 @@ router.post('/signup', async (req, res, next) => {
   }
 });
 
+// Validate credentials and return a signed session token.
 router.post('/login', async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -106,6 +108,7 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
+// Return the authenticated user's current account details.
 router.get('/me', auth, (req, res) => {
   const user = req.user;
 
@@ -115,6 +118,7 @@ router.get('/me', auth, (req, res) => {
   });
 });
 
+// Update the authenticated user's contact, delivery, and masked card details.
 router.put('/profile', auth, async (req, res) => {
   try {
     const { phone, deliveryAddress, paymentCard } = req.body || {};
@@ -173,6 +177,7 @@ router.put('/profile', auth, async (req, res) => {
   }
 });
 
+// Return the authenticated user's newest orders first.
 router.get('/orders', auth, async (req, res) => {
   try {
     const orders = await getOrdersByUserId(req.user._id);
@@ -189,6 +194,7 @@ router.get('/orders', auth, async (req, res) => {
   }
 });
 
+// Return menu data for the customer-facing storefront.
 router.get('/menu', async (req, res) => {
   const menuItems = await getAllMenuItems();
   return res.json({ success: true, menuItems });

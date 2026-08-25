@@ -13,9 +13,11 @@ const app = express();
 const PORT = environment.port;
 const stripe = environment.stripeSecretKey ? require('stripe')(environment.stripeSecretKey) : null;
 
+// Allow the configured client to call the API and initialize Passport for OAuth.
 app.use(cors({ origin: environment.clientUrl }));
 app.use(passport.initialize());
 
+// Stripe sends raw request data here so its signature can be verified safely.
 app.post('/api/v1/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
   if (!stripe || !environment.stripeWebhookSecret) {
     return res.status(503).json({ success: false, message: 'Stripe webhook is not configured' });
@@ -48,6 +50,7 @@ app.post('/api/v1/webhooks/stripe', express.raw({ type: 'application/json' }), a
   }
 });
 
+// Parse JSON for all regular API requests after the webhook route.
 app.use(express.json());
 
 app.get('/', (req, res) => {
@@ -58,6 +61,7 @@ app.get('/', (req, res) => {
   });
 });
 
+// Mount customer, checkout, menu, and OAuth endpoints under the API version.
 app.use('/api/v1', userRouter);
 app.use('/api/v1/auth', oauthRouter);
 
