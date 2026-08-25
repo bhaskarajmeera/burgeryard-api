@@ -4,6 +4,8 @@ const { comparePassword, hashPassword } = require('../utils/bcryptjs');
 const { signJWT } = require('../utils/jwt');
 const auth = require('../middlewares/authMiddleware');
 const { getOrdersByUserId, insertOrder } = require('../models/order/OrderModel');
+const { getAllMenuItems, insertMenuItem, updateMenuItem, deleteMenuItem } = require('../models/menu/MenuModel');
+const admin = require('../middlewares/adminMiddleware');
 
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 
@@ -13,6 +15,7 @@ const serializeUser = (user) => ({
   id: user._id.toString(),
   name: user.name,
   email: user.email,
+  role: user.role === 'admin' || process.env.ADMIN_EMAIL?.toLowerCase() === user.email ? 'admin' : 'user',
   phone: user.phone || '',
   deliveryAddress: user.deliveryAddress || {},
   paymentCard: user.paymentCard || {},
@@ -183,6 +186,44 @@ router.get('/orders', auth, async (req, res) => {
       success: false,
       message: error.message || 'Unable to load orders',
     });
+  }
+});
+
+router.get('/menu', async (req, res) => {
+  const menuItems = await getAllMenuItems();
+  return res.json({ success: true, menuItems });
+});
+
+router.post('/admin/menu', auth, admin, async (req, res) => {
+  try {
+    const menuItem = await insertMenuItem(req.body);
+    return res.status(201).json({ success: true, menuItem });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message || 'Unable to create menu item' });
+  }
+});
+
+router.put('/admin/menu/:id', auth, admin, async (req, res) => {
+  try {
+    const menuItem = await updateMenuItem(req.params.id, req.body);
+    if (!menuItem) {
+      return res.status(404).json({ success: false, message: 'Menu item not found' });
+    }
+    return res.json({ success: true, menuItem });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message || 'Unable to update menu item' });
+  }
+});
+
+router.delete('/admin/menu/:id', auth, admin, async (req, res) => {
+  try {
+    const menuItem = await deleteMenuItem(req.params.id);
+    if (!menuItem) {
+      return res.status(404).json({ success: false, message: 'Menu item not found' });
+    }
+    return res.json({ success: true, message: 'Menu item deleted' });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message || 'Unable to delete menu item' });
   }
 });
 

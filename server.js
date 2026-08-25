@@ -1,13 +1,53 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const passport = require('passport');
 const { conMongoDb } = require('./config/mongodbConfig');
+const { validateEnvironment } = require('./config/env');
 const userRouter = require('./routers/userRouter');
+const oauthRouter = require('./routers/oauthRouter');
+const { updatePaymentStatusByIntent } = require('./models/order/OrderModel');
 
+const environment = validateEnvironment();
 const app = express();
-const PORT = process.env.PORT || 8000;
+const PORT = environment.port;
+const stripe = environment.stripeSecretKey ? require('stripe')(environment.stripeSecretKey) : null;
 
-app.use(cors());
+app.use(cors({ origin: environment.clientUrl }));
+app.use(passport.initialize());
+
+app.post('/api/v1/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  if (!stripe || !environment.stripeWebhookSecret) {
+    return res.status(503).json({ success: false, message: 'Stripe webhook is not configured' });
+  }
+
+  let event;
+  try {
+    const signature = req.headers['stripe-signature'];
+    event = stripe.webhooks.constructEvent(req.body, signature, environment.stripeWebhookSecret);
+  } catch (error) {
+    return res.status(400).json({ success: false, message: `Webhook signature verification failed: ${error.message}` });
+  }
+
+  try {
+    if (event.type === 'payment_intent.succeeded') {
+      await updatePaymentStatusByIntent(event.data.object.id, 'paid');
+    }
+
+    if (event.type === 'payment_intent.payment_failed') {
+      await updatePaymentStatusByIntent(event.data.object.id, 'failed');
+    }
+
+    if (event.type === 'charge.refunded' && event.data.object.payment_intent) {
+      await updatePaymentStatusByIntent(event.data.object.payment_intent, 'refunded');
+    }
+
+    return res.json({ received: true });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Unable to process webhook' });
+  }
+});
+
 app.use(express.json());
 
 app.get('/', (req, res) => {
@@ -19,6 +59,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/v1', userRouter);
+app.use('/api/v1/auth', oauthRouter);
 
 conMongoDb();
 
