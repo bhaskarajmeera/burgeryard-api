@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: false,
     },
-    authProvider: { type: String, enum: ['local', 'google', 'apple'], default: 'local' },
+    authProvider: { type: String, enum: ['local', 'google'], default: 'local' },
     providerId: { type: String, index: true, sparse: true },
     role: {
       type: String,

@@ -20,8 +20,8 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.3",
     "passport": "^0.7.0",
-    "passport-apple": "^2.0.2",
     "passport-google-oauth20": "^2.0.0",
     "stripe": "^22.5.0"
+    
   }
 }
