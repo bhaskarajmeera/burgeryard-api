@@ -65,13 +65,22 @@ app.get('/', (req, res) => {
 app.use('/api/v1', userRouter);
 app.use('/api/v1/auth', oauthRouter);
 
-conMongoDb();
+// Connect before accepting requests so database failures are visible at startup.
+const startServer = async () => {
+  try {
+    await conMongoDb();
+    app.listen(PORT, (error) => {
+      if (error) {
+        console.log(error);
+        return;
+      }
 
-app.listen(PORT, (error) => {
-  if (error) {
-    console.log(error);
-    return;
+      console.log(`Server running at http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
   }
+};
 
-  console.log(`Server running at http://localhost:${PORT}`);
-});
+startServer();
